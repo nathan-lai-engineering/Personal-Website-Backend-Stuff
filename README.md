@@ -1,6 +1,6 @@
 custom web api for personal usage
 
-/tft/3star/:set?/:targetChampion?
+/tft/3star/:set/:targetChampion
 
 
 

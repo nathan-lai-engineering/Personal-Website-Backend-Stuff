@@ -4,7 +4,7 @@ const ROUTE = 'tft';
 
 function loadModule(expressApp){
     createGet("3star/:set/:champion", expressApp, (req, res) => {
-        res.send(`received ${request.params.set} and ${request.params.champion}`);
+        res.send(`received ${req.params.set} and ${req.params.champion}`);
     });
 }
 
