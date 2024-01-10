@@ -1,10 +1,9 @@
 const express = require('express');
+const {loadModule} = require('./api_modules/tft/api');
 
 var app = express();
 
-app.get('/hello', (req, res) => {
-    res.send('hello world');
-});
+loadModule(app);
 
 // port
 var port = process.env.PORT || 3000;
