@@ -19,15 +19,18 @@ function loadModule(expressApp){
         const oracleLogin = getOracleCredentials();
         const connection = await oracledb.getConnection(oracleLogin);
         try{
+            var poolSizes = {};
+
             let sqlString = `
             SELECT cost, pool_size
             FROM pool_sizes
-            WHERE set_number=:set_number
+            WHERE set_number=:setNumber
             `;
-            result = await connection.execute(sqlString, {set_number: setNumber}, {});
-            let poolSize = result.data;
-            console.log(poolSize);
-            console.log(poolSize[0]);
+            result = await connection.execute(sqlString, {setNumber: setNumber}, {});
+            for(let poolSize of result.rows){
+                poolSizes[poolSize[0]] = poolSize[1];
+            }
+            console.log(poolSizes);
         }
         catch(error){
             console.log(error);
