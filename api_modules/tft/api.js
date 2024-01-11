@@ -1,5 +1,6 @@
 module.exports = {loadModule};
 const {getOracleCredentials} = require('../../utils/oracle')
+const oracledb = require('oracledb');
 
 const ROUTE = 'tft';
 
