@@ -1,6 +1,5 @@
 const oracledb = require('oracledb');
 const fs = require('fs');
-const {log} = require('./log')
 
 module.exports = {oracleQuery, getOracleCredentials}
 
@@ -37,11 +36,9 @@ function getOracleCredentials(){
     let localPath = './oracledb.json'; // this is exclusively for local computer dev testing
     let dbLogin = null;
     if(fs.existsSync(localPath)){
-        log("[ORACLE] Using local log in information");
         dbLogin = require(`.${localPath}`);
     }
     else {
-        log("[ORACLE] Using environment log in information");
         dbLogin = { // using environment variables for HEROKU hosting
             "user": process.env.oracle_user,
             "password": process.env.oracle_password,
