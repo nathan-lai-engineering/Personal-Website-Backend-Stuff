@@ -18,19 +18,43 @@ function loadModule(expressApp){
 
         const oracleLogin = getOracleCredentials();
         const connection = await oracledb.getConnection(oracleLogin);
+        var result = null;
         try{
             var poolSizes = {};
+            var champion = {name: championName, traits: []};
 
+            // getting pool sizes
             let sqlString = `
             SELECT cost, pool_size
             FROM pool_sizes
             WHERE set_number=:setNumber
             `;
             result = await connection.execute(sqlString, {setNumber: setNumber}, {});
-            for(let poolSize of result.rows){
-                poolSizes[poolSize[0]] = poolSize[1];
+            if(result.rows.length > 0){
+                for(let poolSize of result.rows){
+                    poolSizes[poolSize[0]] = poolSize[1];
+                }
             }
-            console.log(poolSizes);
+            else
+            return res.status(404).send({message: 'Set not found!'});
+
+
+            // champion data
+            let sqlString2 = `
+            SELECT cost, trait_name
+            FROM champion_traits INNER JOIN champions 
+            USING (set_number, champion_name)
+            WHERE set_number=:setNumber AND champion_name=:championName 
+            `;
+            result = await connection.execute(sqlString2, {setNumber: setNumber, championName: championName}, {});
+            if(result.rows.length > 0){
+                champion.cost = result.rows[0][0];
+                for(let championTrait of result.rows){
+                    champion.traits.push(championTrait[1]);
+                }
+            }
+            else
+                return res.status(404).send({message: 'Champion not found!'});
         }
         catch(error){
             console.log(error);
