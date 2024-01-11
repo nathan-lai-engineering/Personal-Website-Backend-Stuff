@@ -6,6 +6,10 @@ const ROUTE = 'tft';
 
 function loadModule(expressApp){
     createGet(":set/:champion/3star", expressApp, async (req, res) => {
+        // required parameters
+        var setNumber = parseInt(req.params.set);
+        var championName = req.params.champion;
+
         // optional parameters
         var championsHeld = req.query.championsHeld || "";
         var championsAcquired = req.query.championsAcquired || "";
@@ -20,7 +24,7 @@ function loadModule(expressApp){
             FROM pool_sizes
             WHERE set_number=:set_number
             `;
-            result = await connection.execute(sqlString, {set_number: req.params.set}, {});
+            result = await connection.execute(sqlString, {set_number: setNumber}, {});
             let poolSize = result.data;
             console.log(poolSize);
             console.log(poolSize[0]);
