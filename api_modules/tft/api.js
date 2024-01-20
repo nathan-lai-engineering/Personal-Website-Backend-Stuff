@@ -5,15 +5,17 @@ const oracledb = require('oracledb');
 const ROUTE = 'tft';
 var poolSizes = {};
 var champions = {};
+var shopChances = {};
 
 var dbReady = false;
 
 function loadModule(expressApp){
     const oracleLogin = getOracleCredentials();
+    const VARIABLES = 3;
     var variablesLoaded = 0;
-    oracledb.getConnection(oracleLogin).then(connection => {
+    oracledb.getConnection(oracleLogin).then(async (connection) => {
         try{
-            connection.execute('SELECT * FROM pool_sizes', {}, {}).then(res => {
+            connection.execute('SELECT set_number, cost, pool_size FROM pool_sizes', {}, {}).then(res => {
                 if(res){
                     for(let row of res.rows){
                         let setNumber = row[0];
@@ -23,7 +25,7 @@ function loadModule(expressApp){
                         poolSizes[setNumber][cost] = row[2];
                     }
                     variablesLoaded++;
-                    if(variablesLoaded >= 2)
+                    if(variablesLoaded >= VARIABLES)
                         dbReady = true;
                 }
             });
@@ -46,11 +48,30 @@ function loadModule(expressApp){
                         champions[setNumber][championName].traits.push(row[3]);
                     }
                     variablesLoaded++;
-                    if(variablesLoaded >= 2)
+                    if(variablesLoaded >= VARIABLES)
                         dbReady = true;
                 }
             });
 
+            
+            connection.execute('SELECT set_number, shop_level, cost, chance FROM shop_chances', {}, {}).then(res => {
+                if(res){
+                    for(let row of res.rows){
+                        let setNumber = row[0];
+                        let level = row[1];
+                        if(!(setNumber in shopChances))
+                            shopChances[setNumber] = {};
+                        if(!(level in shopChances[setNumber]))
+                            shopChances[setNumber][level] = {};
+                        shopChances[setNumber][level][parseInt(row[2])] = parseFloat(row[3]);
+                    }
+
+                    variablesLoaded++;
+                    if(variablesLoaded >= VARIABLES)
+                        dbReady = true;
+                }
+            });
+            
         }
         catch(error){
 
@@ -97,6 +118,35 @@ function loadModule(expressApp){
                 chanceOfFreeRoll: chanceOfFreeRoll,
                 championDuplicators: championDuplicators
             }
+        };
+
+        var championsAvailableBase = poolSizes[setNumber][champions[setNumber][championName].cost];
+        var championsPoolBase;
+        var totalRolls = 0;
+        var totalSimulations = 0;
+
+        
+        while(Date.now() <= responseObject.info.time.start + 5000){
+            totalSimulations++;
+
+            let championsAvailable = championsAvailableBase - championsHeld;
+            let championsNeeded = 9 - championsAcquired - championDuplicators;
+
+            while(championsNeeded < 9){
+                championsNeeded++;
+            }
+        }
+        
+
+        responseObject.data = {
+            championName: championName,
+            championData: champions[setNumber][championName],
+            stats: {
+                totalRolls: totalRolls,
+                totalSimulations: totalSimulations
+            },
+            shopChances: shopChances[setNumber][level],
+            averageRolls: totalRolls / totalSimulations
         };
 
         // times
