@@ -6,7 +6,62 @@ const ROUTE = 'tft';
 var poolSizes = {};
 var champions = {};
 
+var dbReady = false;
+
 function loadModule(expressApp){
+    const oracleLogin = getOracleCredentials();
+    var variablesLoaded = 0;
+    oracledb.getConnection(oracleLogin).then(connection => {
+        try{
+            connection.execute('SELECT * FROM pool_sizes', {}, {}).then(res => {
+                if(res){
+                    for(let row of res.rows){
+                        let setNumber = row[0];
+                        let cost = row[1];
+                        if(!(setNumber in poolSizes))
+                            poolSizes[setNumber] = {};
+                        poolSizes[setNumber][cost] = row[2];
+                    }
+                    variablesLoaded++;
+                    if(variablesLoaded >= 2)
+                        dbReady = true;
+                }
+            });
+
+            connection.execute(`SELECT set_number, champion_name, cost, trait_name
+            FROM tft_sets INNER JOIN champions USING (set_number)
+            INNER JOIN champion_traits USING(set_number, champion_name)`, {}, {}).then(res => {
+                if(res){
+                    // set_number, champion_name, cost, trait_name
+                    // caching all the data
+                    for(let row of res.rows){
+                        let setNumber = row[0];
+                        let championName = row[1];
+
+                        if(!(setNumber in champions))
+                            champions[setNumber] = {};
+                        if(!(championName in champions[setNumber]))
+                            champions[setNumber][championName] = {traits: []};
+                        champions[setNumber][championName].cost = row[2];
+                        champions[setNumber][championName].traits.push(row[3]);
+                    }
+                    variablesLoaded++;
+                    if(variablesLoaded >= 2)
+                        dbReady = true;
+                }
+            });
+
+        }
+        catch(error){
+
+        }
+        finally {
+            connection.close();
+        }
+    });
+
+
+
     createGet(":set/:champion/3star", expressApp, async (req, res) => {
         // the response object
         var responseObject = {info:{time:{}}, data:{}};
@@ -34,63 +89,12 @@ function loadModule(expressApp){
             }
         };
 
-
-        // checking if the needed data is stored in memory
-        let hasPoolSize = Object.keys(poolSizes).length > 0;
-        let hasChampion = Object.keys(champions).includes(championName);
-
-        // getting champion and pool size data from the database
-        if(!hasPoolSize || !hasChampion){
-            const oracleLogin = getOracleCredentials();
-            const connection = await oracledb.getConnection(oracleLogin);
-            var result = null;
-            try{ 
-                // getting pool sizes
-                if(!hasPoolSize){
-                    let sqlString = `
-                    SELECT cost, pool_size
-                    FROM pool_sizes
-                    WHERE set_number=:setNumber
-                    `;
-                    result = await connection.execute(sqlString, {setNumber: setNumber}, {});
-                    if(result.rows.length > 0){
-                        for(let poolSize of result.rows){
-                            poolSizes[poolSize[0]] = poolSize[1];
-                        }
-                    }
-                    else
-                        return res.status(404).send({message: 'Set not found!'});
-                }
-                // champion data
-                if(!hasChampion){
-                    let sqlString2 = `
-                    SELECT cost, trait_name
-                    FROM champion_traits INNER JOIN champions 
-                    USING (set_number, champion_name)
-                    WHERE set_number=:setNumber AND champion_name=:championName 
-                    `;
-                    result = await connection.execute(sqlString2, {setNumber: setNumber, championName: championName}, {});
-                    if(result.rows.length > 0){
-                        champions[championName] = {traits: []};
-                        champions[championName].cost = result.rows[0][0];
-                        for(let championTrait of result.rows){
-                            champions[championName].traits.push(championTrait[1]);
-                        }
-                    }
-                    else
-                        return res.status(404).send({message: 'Champion not found!'});
-                }
-            }
-            catch(error){
-                console.log(error);
-            }
-            finally{
-                connection.close();
-            }
-        }
-        if(hasPoolSize && hasChampion){
-
-        }
+        if(!(setNumber in champions) || !(setNumber in poolSizes))
+            return res.status(404).send({message: 'Set not found!'});
+        if(!(championName in champions[setNumber]))
+            return res.status(404).send({message: 'Champion not found!'});
+        if(!dbReady)
+            return res.status(503).send({message: 'Not finished starting up, try again later!'});
         
         // times
         responseObject.info.time.end = Date.now();
