@@ -17,10 +17,10 @@ function loadModule(expressApp){
         var championName = req.params.champion;
 
         // optional parameters
-        var championsHeld = req.query.championsHeld || "";
-        var championsAcquired = req.query.championsAcquired || "";
-        var chanceOfFreeRoll = req.query.chanceOfFreeRoll || "";
-        var championDuplicators = req.query.championDuplicators || "";
+        var championsHeld = parseInt(req.query.championsHeld) || 0;
+        var championsAcquired = parseInt(req.query.championsAcquired) || 0;
+        var chanceOfFreeRoll = parseFloat(req.query.chanceOfFreeRoll) || 0;
+        var championDuplicators = parseInt(req.query.championDuplicators) || 0;
 
         responseObject.info.request = {
             url: req.originalUrl,
