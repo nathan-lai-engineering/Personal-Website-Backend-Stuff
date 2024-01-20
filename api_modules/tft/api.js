@@ -62,7 +62,7 @@ function loadModule(expressApp){
 
 
 
-    createGet(":set/:champion/3star", expressApp, async (req, res) => {
+    createGet(":set/:champion/3star/:level/", expressApp, async (req, res) => {
         // the response object
         var responseObject = {info:{time:{}}, data:{}};
         responseObject.info.time.start = Date.now();
@@ -70,12 +70,22 @@ function loadModule(expressApp){
         // required parameters
         var setNumber = parseInt(req.params.set);
         var championName = req.params.champion;
+        var level = req.params.level;
 
         // optional parameters
         var championsHeld = parseInt(req.query.championsHeld) || 0;
         var championsAcquired = parseInt(req.query.championsAcquired) || 0;
         var chanceOfFreeRoll = parseFloat(req.query.chanceOfFreeRoll) || 0;
         var championDuplicators = parseInt(req.query.championDuplicators) || 0;
+
+        if(!dbReady)
+            return res.status(503).send({message: 'Not finished starting up, try again later!'});
+        if(!(setNumber in champions) || !(setNumber in poolSizes))
+            return res.status(404).send({message: 'Set not found'});
+        if(!(championName in champions[setNumber]))
+            return res.status(404).send({message: 'Champion not found'});
+        if(level < 0 || level > 10)
+            return res.status(404).send({message: 'Level not found'});
 
         responseObject.info.request = {
             url: req.originalUrl,
@@ -89,13 +99,6 @@ function loadModule(expressApp){
             }
         };
 
-        if(!(setNumber in champions) || !(setNumber in poolSizes))
-            return res.status(404).send({message: 'Set not found!'});
-        if(!(championName in champions[setNumber]))
-            return res.status(404).send({message: 'Champion not found!'});
-        if(!dbReady)
-            return res.status(503).send({message: 'Not finished starting up, try again later!'});
-        
         // times
         responseObject.info.time.end = Date.now();
         responseObject.info.time.duration = responseObject.info.time.end - responseObject.info.time.start;
