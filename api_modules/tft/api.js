@@ -8,6 +8,10 @@ var champions = {};
 
 function loadModule(expressApp){
     createGet(":set/:champion/3star", expressApp, async (req, res) => {
+        // the response object
+        var responseObject = {info:{time:{}}, data:{}};
+        responseObject.info.time.start = Date.now();
+
         // required parameters
         var setNumber = parseInt(req.params.set);
         var championName = req.params.champion;
@@ -17,6 +21,19 @@ function loadModule(expressApp){
         var championsAcquired = req.query.championsAcquired || "";
         var chanceOfFreeRoll = req.query.chanceOfFreeRoll || "";
         var championDuplicators = req.query.championDuplicators || "";
+
+        responseObject.info.request = {
+            url: req.originalUrl,
+            parameters: {
+                setNumber: setNumber,
+                championName: championName,
+                championsHeld: championsHeld,
+                championsAcquired: championsAcquired,
+                chanceOfFreeRoll: chanceOfFreeRoll,
+                championDuplicators: championDuplicators
+            }
+        };
+
 
         // checking if the needed data is stored in memory
         let hasPoolSize = Object.keys(poolSizes).length > 0;
@@ -70,10 +87,17 @@ function loadModule(expressApp){
             finally{
                 connection.close();
             }
-    
+        }
+        if(hasPoolSize && hasChampion){
+
         }
         
-        res.send(`received ${req.params.set} and ${req.params.champion}, optional: ${championsHeld} ${championsAcquired} ${chanceOfFreeRoll} ${championDuplicators}`);
+        // times
+        responseObject.info.time.end = Date.now();
+        responseObject.info.time.duration = responseObject.info.time.end - responseObject.info.time.start;
+
+        // send the data back
+        res.send(responseObject);
 
     });
 }
