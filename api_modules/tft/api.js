@@ -81,12 +81,8 @@ function loadModule(expressApp){
         }
     });
 
-
-
     createGet(":set/:champion/3star/:level/", expressApp, async (req, res) => {
-        // the response object
-        var responseObject = {info:{time:{}}, data:{}};
-        responseObject.info.time.start = Date.now();
+        let startTime = Date.now();
 
         // required parameters
         var setNumber = parseInt(req.params.set);
@@ -99,6 +95,7 @@ function loadModule(expressApp){
         var chanceOfFreeRoll = parseFloat(req.query.chanceOfFreeRoll) || 0;
         var championDuplicators = parseInt(req.query.championDuplicators) || 0;
 
+        // errors
         if(!dbReady)
             return res.status(503).send({message: 'Not finished starting up, try again later!'});
         if(!(setNumber in champions) || !(setNumber in poolSizes))
@@ -108,53 +105,8 @@ function loadModule(expressApp){
         if(level < 0 || level > 10)
             return res.status(404).send({message: 'Level not found'});
 
-        responseObject.info.request = {
-            url: req.originalUrl,
-            parameters: {
-                setNumber: setNumber,
-                championName: championName,
-                championsHeld: championsHeld,
-                championsAcquired: championsAcquired,
-                chanceOfFreeRoll: chanceOfFreeRoll,
-                championDuplicators: championDuplicators
-            }
-        };
-
-        var championsAvailableBase = poolSizes[setNumber][champions[setNumber][championName].cost];
-        var championsPoolBase;
-        var totalRolls = 0;
-        var totalSimulations = 0;
-
-        
-        while(Date.now() <= responseObject.info.time.start + 5000){
-            totalSimulations++;
-
-            let championsAvailable = championsAvailableBase - championsHeld;
-            let championsNeeded = 9 - championsAcquired - championDuplicators;
-
-            while(championsNeeded < 9){
-                championsNeeded++;
-            }
-        }
-        
-
-        responseObject.data = {
-            championName: championName,
-            championData: champions[setNumber][championName],
-            stats: {
-                totalRolls: totalRolls,
-                totalSimulations: totalSimulations
-            },
-            shopChances: shopChances[setNumber][level],
-            averageRolls: totalRolls / totalSimulations
-        };
-
-        // times
-        responseObject.info.time.end = Date.now();
-        responseObject.info.time.duration = responseObject.info.time.end - responseObject.info.time.start;
-
         // send the data back
-        res.send(responseObject);
+        res.send(threestars(startTime, req.originalUrl, setNumber, championName, level, championsHeld, championsAcquired, chanceOfFreeRoll, championDuplicators));
 
     });
 }
@@ -167,4 +119,69 @@ function loadModule(expressApp){
  */
 function createGet(name, app, func){
     app.get(`/${ROUTE}/${name}`, func);
+}
+
+/**
+ * Given parameters, simulates the average rolls for a certain 3-star, and returns an object for the response
+ * @param {*} startTime 
+ * @param {*} url 
+ * @param {*} setNumber 
+ * @param {*} championName 
+ * @param {*} level 
+ * @param {*} championsHeld 
+ * @param {*} championsAcquired 
+ * @param {*} chanceOfFreeRoll 
+ * @param {*} championDuplicators 
+ * @returns 
+ */
+function threestars(startTime, url, setNumber, championName, level, championsHeld, championsAcquired, chanceOfFreeRoll, championDuplicators){
+    var responseObject = {info:{time:{start: startTime}}, data:{}};
+    // put in some api info
+    responseObject.info.request = {
+        url: url,
+        parameters: {
+            setNumber: setNumber,
+            championName: championName,
+            championsHeld: championsHeld,
+            championsAcquired: championsAcquired,
+            chanceOfFreeRoll: chanceOfFreeRoll,
+            championDuplicators: championDuplicators
+        }
+    };
+
+    // set up the starter variables
+    var championsAvailableBase = poolSizes[setNumber][champions[setNumber][championName].cost];
+    var championsPoolBase;
+    var totalRolls = 0;
+    var totalSimulations = 0;
+
+    // run the simulations
+    while(Date.now() <= responseObject.info.time.start + 5000){
+        totalSimulations++;
+
+        let championsAvailable = championsAvailableBase - championsHeld;
+        let championsNeeded = 9 - championsAcquired - championDuplicators;
+
+        while(championsNeeded < 9 && championsAvailable > 0){
+            championsNeeded++;
+        }
+    }
+    
+    // package the data up
+    responseObject.data = {
+        championName: championName,
+        championData: champions[setNumber][championName],
+        stats: {
+            totalRolls: totalRolls,
+            totalSimulations: totalSimulations
+        },
+        shopChances: shopChances[setNumber][level],
+        averageRolls: totalRolls / totalSimulations
+    };
+
+    // times
+    responseObject.info.time.end = Date.now();
+    responseObject.info.time.duration = responseObject.info.time.end - responseObject.info.time.start;
+
+    return responseObject;
 }
