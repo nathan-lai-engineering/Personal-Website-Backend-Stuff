@@ -84,15 +84,15 @@ function loadModule(expressApp){
 
 
 
-    createGet(":set/:champion/3star/:level/", expressApp, async (req, res) => {
+    createGet(":set/:champion/3star/", expressApp, async (req, res) => {
         let startTime = Date.now();
 
         // required parameters
         var setNumber = parseInt(req.params.set);
         var championName = req.params.champion;
-        var level = req.params.level;
 
         // optional parameters
+        var level = parseInt(req.query.level) || 6;
         var championsHeld = parseInt(req.query.championsHeld) || 0;
         var championsAcquired = parseInt(req.query.championsAcquired) || 0;
         var chanceOfFreeRoll = parseFloat(req.query.chanceOfFreeRoll) || 0;
@@ -156,22 +156,31 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
     };
 
     // set up the starter variables
-    var championsAvailableBase = poolSizes[setNumber][champions[setNumber][championName].cost];
+    var championsAvailableBase = poolSizes[setNumber][champions[setNumber][championName].cost] - championsHeld;
     var championsPoolBase;
     var totalRolls = 0;
     var totalSimulations = 0;
 
-    // run the simulations
-    while(Date.now() <= responseObject.info.time.start + 5000){
-        totalSimulations++;
+    var currentShopChances = shopChances[setNumber][level];
+    var currentChampion = champions[setNumber][championName];
+    console.log(currentShopChances);
+    console.log(currentChampion);
 
-        let championsAvailable = championsAvailableBase - championsHeld;
-        let championsNeeded = 9 - championsAcquired - championDuplicators;
+    // checking if acquiring the champion is possible first
+    if(championsAvailableBase + championsHeld >= 9 && currentChampion.cost in currentShopChances){
+        // run the simulations
+        while(Date.now() <= responseObject.info.time.start + 5000){
+            totalSimulations++;
 
-        while(championsNeeded < 9 && championsAvailable > 0){
-            championsNeeded++;
+            let championsAvailable = championsAvailableBase - championsHeld;
+            let championsNeeded = 9 - championsAcquired - championDuplicators;
+
+            while(championsNeeded < 9 && championsAvailable > 0){
+                championsNeeded++;
+            }
         }
     }
+
     
     // package the data up
     responseObject.data = {
