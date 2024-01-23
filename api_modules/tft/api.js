@@ -1,6 +1,7 @@
 module.exports = {loadModule};
-const {getOracleCredentials} = require('../../utils/oracle')
+const {getOracleCredentials} = require('../../utils/oracle');
 const oracledb = require('oracledb');
+const {humanTimeNow} = require('../../utils/time');
 
 const ROUTE = 'tft';
 var poolSizes = {};
@@ -81,6 +82,8 @@ function loadModule(expressApp){
         }
     });
 
+
+
     createGet(":set/:champion/3star/:level/", expressApp, async (req, res) => {
         let startTime = Date.now();
 
@@ -112,13 +115,16 @@ function loadModule(expressApp){
 }
 
 /**
- * wrapper just to make a little easier to read
+ * wrapper just to make a little easier to read with logging too
  * @param {} name 
  * @param {*} app 
  * @param {*} func 
  */
 function createGet(name, app, func){
-    app.get(`/${ROUTE}/${name}`, func);
+    app.get(`/${ROUTE}/${name}`, (req, res) => {
+        console.log('[%s] %s', humanTimeNow(), req.originalUrl);
+        func(req,res);
+    });
 }
 
 /**
