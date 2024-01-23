@@ -100,13 +100,21 @@ function loadModule(expressApp){
 
         // errors
         if(!dbReady)
-            return res.status(503).send({message: 'Not finished starting up, try again later!'});
+            return res.status(503).send({message: 'Service unavailable: Still initializing service'});
+
         if(!(setNumber in champions) || !(setNumber in poolSizes))
-            return res.status(404).send({message: 'Set not found'});
+            return res.status(404).send({message: 'Data not found: Set'});
         if(!(championName in champions[setNumber]))
-            return res.status(404).send({message: 'Champion not found'});
+            return res.status(404).send({message: 'Data not found: Champion'});
+
         if(level < 0 || level > 10)
-            return res.status(404).send({message: 'Level not found'});
+            return res.status(403).send({message: 'Forbidden: Please enter a valid level range'});
+        if(championsHeld < 0 || championsAcquired < 0 || championDuplicators < 0)
+            return res.status(403).send({message: 'Forbidden: Please enter a non-negative integer'});
+        if(chanceOfFreeRoll > 1 || chanceOfFreeRoll < 0)
+            return res.status(403).send({message: 'Forbidden: Please enter a valid decimal percentage between 0.0 and 1.0'});
+        if(championsHeld > championsAcquired)
+            return res.status(403).send({message: 'Forbidden: You cannot hold more champions than what is collectively acquired'});
 
         // send the data back
         res.send(threestars(startTime, req.originalUrl, setNumber, championName, level, championsHeld, championsAcquired, chanceOfFreeRoll, championDuplicators));
@@ -155,28 +163,68 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
         }
     };
 
+    // variables for ease
+    let cost = champions[setNumber][championName].cost;
+
     // set up the starter variables
-    var championsAvailableBase = poolSizes[setNumber][champions[setNumber][championName].cost] - championsHeld;
-    var championsPoolBase;
+    var championsAvailableBase = poolSizes[setNumber][cost];
+    var championsPoolBase = calculateCostPool(setNumber, cost);
+
+    // counter variables
+    let championsAvailable = championsAvailableBase - championsHeld;
+    let championsNeeded = 9 - championsAcquired - championDuplicators;
+
+    // statistic variables
     var totalRolls = 0;
+    var freeRolls = 0;
     var totalSimulations = 0;
 
     var currentShopChances = shopChances[setNumber][level];
     var currentChampion = champions[setNumber][championName];
-    console.log(currentShopChances);
-    console.log(currentChampion);
 
     // checking if acquiring the champion is possible first
-    if(championsAvailableBase + championsHeld >= 9 && currentChampion.cost in currentShopChances){
+    var possibleThreeStar = (championsAvailable >= championsNeeded && currentChampion.cost in currentShopChances);
+    if(possibleThreeStar){
         // run the simulations
-        while(Date.now() <= responseObject.info.time.start + 5000){
+        while(Date.now() <= responseObject.info.time.start + 5000){ // each iteration is a whole simulation
             totalSimulations++;
 
-            let championsAvailable = championsAvailableBase - championsHeld;
-            let championsNeeded = 9 - championsAcquired - championDuplicators;
+            // reset counter variables
+            championsAvailable = championsAvailableBase - championsHeld;
+            championsNeeded = 9 - championsAcquired - championDuplicators;
+            var simChampionsHeld = championsHeld;
 
-            while(championsNeeded < 9 && championsAvailable > 0){
-                championsNeeded++;
+            let rollsLeft = 1;
+            while(championsNeeded > 0 && championsAvailable >= championsNeeded && rollsLeft > 0){ // each iteration is a single roll of shop
+                totalRolls++;
+                rollsLeft--;
+
+                // roll the chance of a free roll
+                if(Math.random() < chanceOfFreeRoll){
+                    rollsLeft++;
+                    freeRolls++;
+                }
+
+                for(let i = 0; i < 5; i++){ // each iteration is a slot in shop
+
+                    // calculate chance
+                    let championsPool = championsPoolBase - simChampionsHeld;
+                    let targetChance = championsAvailable / championsPool;
+
+                    // roll the chance of getting cost
+                    if(Math.random() < currentShopChances[cost]) {
+
+                        // roll the chance of getting champion
+                        if(Math.random() < targetChance){
+                            simChampionsHeld++;
+                            championsAvailable--;
+                            championsNeeded--;
+                        }
+                    }
+                }
+                if(rollsLeft = 0){ // no more free rolls, pay another roll
+                    rollsLeft = 1;
+                }
             }
         }
     }
@@ -186,8 +234,11 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
     responseObject.data = {
         championName: championName,
         championData: champions[setNumber][championName],
+        possibleThreeStar: possibleThreeStar,
         stats: {
             totalRolls: totalRolls,
+            paidRolls: totalRolls - freeRolls,
+            freeRolls: freeRolls,
             totalSimulations: totalSimulations
         },
         shopChances: shopChances[setNumber][level],
@@ -199,4 +250,11 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
     responseObject.info.time.duration = responseObject.info.time.end - responseObject.info.time.start;
 
     return responseObject;
+}
+
+function calculateCostPool(setNumber, cost){
+    var poolSize = 0;
+    let targetCostChampions = Object.keys(champions[setNumber]).filter((championName) => champions[setNumber][championName].cost == cost);
+    poolSize = targetCostChampions.length * poolSizes[setNumber][cost];
+    return poolSize;
 }
