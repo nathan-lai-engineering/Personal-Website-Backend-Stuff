@@ -84,7 +84,7 @@ function loadModule(expressApp){
 
 
 
-    createGet(":set/:champion/3star/", expressApp, async (req, res) => {
+    createGet(":set/:champion/3star", expressApp, async (req, res) => {
         let startTime = Date.now();
 
         // required parameters
@@ -113,7 +113,7 @@ function loadModule(expressApp){
             return res.status(403).send({message: 'Forbidden: Please enter a non-negative integer'});
         if(chanceOfFreeRoll > 1 || chanceOfFreeRoll < 0)
             return res.status(403).send({message: 'Forbidden: Please enter a valid decimal percentage between 0.0 and 1.0'});
-        if(championsHeld > championsAcquired)
+        if(championsHeld < championsAcquired)
             return res.status(403).send({message: 'Forbidden: You cannot hold more champions than what is collectively acquired'});
 
         // send the data back
@@ -149,9 +149,10 @@ function createGet(name, app, func){
  * @returns 
  */
 function threestars(startTime, url, setNumber, championName, level, championsHeld, championsAcquired, chanceOfFreeRoll, championDuplicators){
-    var responseObject = {info:{time:{start: startTime}}, data:{}};
+    var responseObject = {};
     // put in some api info
-    responseObject.info.request = {
+    responseObject.info = {
+        start: startTime,
         url: url,
         parameters: {
             setNumber: setNumber,
@@ -186,7 +187,7 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
     var possibleThreeStar = (championsAvailable >= championsNeeded && currentChampion.cost in currentShopChances);
     if(possibleThreeStar){
         // run the simulations
-        while(Date.now() <= responseObject.info.time.start + 5000){ // each iteration is a whole simulation
+        while(Date.now() <= responseObject.info.start + 5000){ // each iteration is a whole simulation
             totalSimulations++;
 
             // reset counter variables
@@ -222,7 +223,7 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
                         }
                     }
                 }
-                if(rollsLeft = 0){ // no more free rolls, pay another roll
+                if(rollsLeft == 0){ // no more free rolls, reset the roll
                     rollsLeft = 1;
                 }
             }
@@ -231,23 +232,30 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
 
     
     // package the data up
-    responseObject.data = {
+    responseObject.championData = {
         championName: championName,
-        championData: champions[setNumber][championName],
+        championTraits: champions[setNumber][championName].traits,
+        championCost: champions[setNumber][championName].cost,
         possibleThreeStar: possibleThreeStar,
-        stats: {
-            totalRolls: totalRolls,
+        shopChance: shopChances[setNumber][level][cost],
+    };
+    responseObject.stats = {
+        total:{
+            rolls: totalRolls,
             paidRolls: totalRolls - freeRolls,
             freeRolls: freeRolls,
-            totalSimulations: totalSimulations
+            simulations: totalSimulations,
         },
-        shopChances: shopChances[setNumber][level],
-        averageRolls: totalRolls / totalSimulations
-    };
+        average: {
+            rolls: totalRolls / totalSimulations,
+            paidRolls: (totalRolls - freeRolls) / totalSimulations,
+            freeRolls: freeRolls / totalSimulations
+        }
+    },
 
     // times
-    responseObject.info.time.end = Date.now();
-    responseObject.info.time.duration = responseObject.info.time.end - responseObject.info.time.start;
+    responseObject.info.end = Date.now();
+    responseObject.info.duration = responseObject.info.end - responseObject.info.start;
 
     return responseObject;
 }
