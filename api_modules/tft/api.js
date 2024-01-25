@@ -120,6 +120,26 @@ function loadModule(expressApp){
     });
 
     /**
+     * responds with the information of a certain champion
+     */
+        createGet(":set/:trait", expressApp, async (req, res) => {
+            let startTime = Date.now();
+    
+            // required parameters
+            var setNumber = parseInt(req.params.set);
+            var traitName = req.params.trait;
+    
+            // errors
+            if(!dbReady)
+                return res.status(503).send({message: 'Service unavailable: Still initializing service'});
+    
+            if(!(setNumber in champions) || !(setNumber in poolSizes))
+                return res.status(404).send({message: 'Data not found: Set'});
+            if(!(championName in champions[setNumber])) // TODO CHANGE THIS
+                return res.status(404).send({message: 'Data not found: Trait'});
+        });
+
+    /**
      * responds with the statistics of hitting a 3 star
      */
     createGet(":set/:champion/3star", expressApp, async (req, res) => {
