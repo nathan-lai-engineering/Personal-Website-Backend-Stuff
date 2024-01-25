@@ -82,7 +82,36 @@ function loadModule(expressApp){
         }
     });
 
+    createGet(":set", expressApp, async (req, res) => {
+        let startTime = Date.now();
 
+        // required parameters
+        var setNumber = parseInt(req.params.set);
+
+        // errors
+        if(!dbReady)
+            return res.status(503).send({message: 'Service unavailable: Still initializing service'});
+
+        if(!(setNumber in champions) || !(setNumber in poolSizes))
+            return res.status(404).send({message: 'Data not found: Set'});
+    });
+
+    createGet(":set/:champion", expressApp, async (req, res) => {
+        let startTime = Date.now();
+
+        // required parameters
+        var setNumber = parseInt(req.params.set);
+        var championName = req.params.champion;
+
+        // errors
+        if(!dbReady)
+            return res.status(503).send({message: 'Service unavailable: Still initializing service'});
+
+        if(!(setNumber in champions) || !(setNumber in poolSizes))
+            return res.status(404).send({message: 'Data not found: Set'});
+        if(!(championName in champions[setNumber]))
+            return res.status(404).send({message: 'Data not found: Champion'});
+    });
 
     createGet(":set/:champion/3star", expressApp, async (req, res) => {
         let startTime = Date.now();
