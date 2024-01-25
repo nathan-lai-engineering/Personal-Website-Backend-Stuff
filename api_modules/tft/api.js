@@ -82,6 +82,9 @@ function loadModule(expressApp){
         }
     });
 
+    /**
+     * responds with the information of the whole set
+     */
     createGet(":set", expressApp, async (req, res) => {
         let startTime = Date.now();
 
@@ -96,6 +99,9 @@ function loadModule(expressApp){
             return res.status(404).send({message: 'Data not found: Set'});
     });
 
+    /**
+     * responds with the information of a certain champion
+     */
     createGet(":set/:champion", expressApp, async (req, res) => {
         let startTime = Date.now();
 
@@ -113,6 +119,9 @@ function loadModule(expressApp){
             return res.status(404).send({message: 'Data not found: Champion'});
     });
 
+    /**
+     * responds with the statistics of hitting a 3 star
+     */
     createGet(":set/:champion/3star", expressApp, async (req, res) => {
         let startTime = Date.now();
 
