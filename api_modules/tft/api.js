@@ -102,7 +102,7 @@ function loadModule(expressApp){
     /**
      * responds with the information of a certain champion
      */
-    createGet(":set/:champion", expressApp, async (req, res) => {
+    createGet(":set/champ/:champion", expressApp, async (req, res) => {
         let startTime = Date.now();
 
         // required parameters
@@ -117,12 +117,15 @@ function loadModule(expressApp){
             return res.status(404).send({message: 'Data not found: Set'});
         if(!(championName in champions[setNumber]))
             return res.status(404).send({message: 'Data not found: Champion'});
+
+        // send the data back
+        res.send(champion(startTime, req.originalUrl, setNumber, championName));
     });
 
     /**
-     * responds with the information of a certain champion
+     * responds with the information of a certain trait
      */
-        createGet(":set/:trait", expressApp, async (req, res) => {
+        createGet(":set/trait/:trait", expressApp, async (req, res) => {
             let startTime = Date.now();
     
             // required parameters
@@ -135,14 +138,15 @@ function loadModule(expressApp){
     
             if(!(setNumber in champions) || !(setNumber in poolSizes))
                 return res.status(404).send({message: 'Data not found: Set'});
-            if(!(championName in champions[setNumber])) // TODO CHANGE THIS
-                return res.status(404).send({message: 'Data not found: Trait'});
+            
+            // send the data back
+            res.send(trait(startTime, req.originalUrl, setNumber, traitName));
         });
 
     /**
      * responds with the statistics of hitting a 3 star
      */
-    createGet(":set/:champion/3star", expressApp, async (req, res) => {
+    createGet(":set/champ/:champion/3star", expressApp, async (req, res) => {
         let startTime = Date.now();
 
         // required parameters
@@ -191,6 +195,67 @@ function createGet(name, app, func){
         console.log('[%s] %s', humanTimeNow(), req.originalUrl);
         func(req,res);
     });
+}
+
+function champion(startTime, url, setNumber, championName){
+    var responseObject = {};
+    // put in some api info
+    responseObject.info = {
+        start: startTime,
+        url: url,
+        parameters: {
+            setNumber: setNumber,
+            championName: championName
+        }
+    };
+
+    // package the data up
+    responseObject.championData = {
+        championName: championName,
+        championTraits: champions[setNumber][championName].traits,
+        championCost: champions[setNumber][championName].cost
+    };
+
+    // times
+    responseObject.info.end = Date.now();
+    responseObject.info.duration = responseObject.info.end - responseObject.info.start;
+
+    return responseObject;
+}
+
+function trait(startTime, url, setNumber, traitName){
+    var responseObject = {};
+    // put in some api info
+    responseObject.info = {
+        start: startTime,
+        url: url,
+        parameters: {
+            setNumber: setNumber,
+            traitName: traitName
+        }
+    };
+
+    responseObject.traitData = {
+        traitName: traitName,
+        champions: []
+    }
+
+    // add the champion to list if they share a trait
+    for(let championName in champions[setNumber]){
+        if(champions[setNumber][championName].traits.includes(traitName.toLowerCase())){
+            responseObject.traitData.champions.push({
+                championName: championName,
+                championTraits: champions[setNumber][championName].traits,
+                championCost: champions[setNumber][championName].cost
+            });
+        }
+    }
+
+    // times
+    responseObject.info.end = Date.now();
+    responseObject.info.duration = responseObject.info.end - responseObject.info.start;
+
+    return responseObject;
 }
 
 /**
@@ -293,9 +358,7 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
     responseObject.championData = {
         championName: championName,
         championTraits: champions[setNumber][championName].traits,
-        championCost: champions[setNumber][championName].cost,
-        possibleThreeStar: possibleThreeStar,
-        shopChance: shopChances[setNumber][level][cost],
+        championCost: champions[setNumber][championName].cost
     };
     responseObject.stats = {
         total:{
@@ -308,7 +371,9 @@ function threestars(startTime, url, setNumber, championName, level, championsHel
             rolls: totalRolls / totalSimulations,
             paidRolls: (totalRolls - freeRolls) / totalSimulations,
             freeRolls: freeRolls / totalSimulations
-        }
+        },
+        possibleThreeStar: possibleThreeStar,
+        shopChance: shopChances[setNumber][level][cost],
     },
 
     // times
