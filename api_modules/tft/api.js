@@ -97,6 +97,8 @@ function loadModule(expressApp){
 
         if(!(setNumber in champions) || !(setNumber in poolSizes))
             return res.status(404).send({message: 'Data not found: Set'});
+
+        res.send(set(startTime, req.originalUrl, setNumber));
     });
 
     /**
@@ -195,6 +197,24 @@ function createGet(name, app, func){
         console.log('[%s] %s', humanTimeNow(), req.originalUrl);
         func(req,res);
     });
+}
+
+function set(startTime, url, setNumber){
+    var responseObject = {};
+    // put in some api info
+    responseObject.info = {
+        start: startTime,
+        url: url,
+        parameters: {
+            setNumber: setNumber
+        }
+    };
+
+    // times
+    responseObject.info.end = Date.now();
+    responseObject.info.duration = responseObject.info.end - responseObject.info.start;
+
+    return responseObject;
 }
 
 function champion(startTime, url, setNumber, championName){
