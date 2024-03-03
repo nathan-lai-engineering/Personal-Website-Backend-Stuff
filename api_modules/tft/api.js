@@ -82,6 +82,11 @@ function loadModule(expressApp){
         }
     });
 
+    expressApp.get(`/`, (req, res) => {
+        console.log('[%s] %s', humanTimeNow(), 'ping');
+        res.send("pong");
+    });
+
     /**
      * responds with the information of the whole set
      */
